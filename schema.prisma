@@ -1,0 +1,91 @@
+// datasource db defines the database connection settings.
+// It is configured for PostgreSQL and uses an environment variable for the connection URL.
+// The 'extensions' feature enables the use of PostgreSQL-specific data types.
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+}
+
+// generator db configures Prisma Client settings.
+// It is set up to use Prisma Client Python with asyncio interface and specific features.
+generator db {
+  provider             = "prisma-client-py"
+  interface            = "asyncio"
+  recursive_type_depth = 5
+  previewFeatures      = ["postgresqlExtensions"]
+}
+
+model User {
+  id                 String         @id @default(dbgenerated("gen_random_uuid()"))
+  email              String         @unique
+  hashedPassword     String
+  role               Role
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  Profile            Profile?
+  ClientAppointments Appointment[]  @relation("ClientAppointments")
+  ProAppointments    Appointment[]  @relation("ProfessionalAppointments")
+  Notifications      Notification[]
+}
+
+model Profile {
+  id        String     @id @default(dbgenerated("gen_random_uuid()"))
+  firstName String
+  lastName  String
+  timeZone  String
+  userId    String     @unique
+  User      User       @relation(fields: [userId], references: [id])
+  Schedules Schedule[]
+}
+
+model Schedule {
+  id           String         @id @default(dbgenerated("gen_random_uuid()"))
+  date         DateTime
+  startTime    DateTime
+  endTime      DateTime
+  status       ScheduleStatus
+  profileId    String
+  Profile      Profile        @relation(fields: [profileId], references: [id])
+  Appointments Appointment[]
+}
+
+model Appointment {
+  id             String            @id @default(dbgenerated("gen_random_uuid()"))
+  clientId       String
+  professionalId String
+  scheduleId     String
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  status         AppointmentStatus
+  Client         User              @relation("ClientAppointments", fields: [clientId], references: [id])
+  Professional   User              @relation("ProfessionalAppointments", fields: [professionalId], references: [id])
+  Schedule       Schedule          @relation(fields: [scheduleId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  read      Boolean  @default(false)
+  User      User     @relation(fields: [userId], references: [id])
+}
+
+enum Role {
+  Admin
+  Professional
+  Client
+}
+
+enum ScheduleStatus {
+  Available
+  Unavailable
+  Booked
+}
+
+enum AppointmentStatus {
+  Pending
+  Confirmed
+  Cancelled
+}
+
